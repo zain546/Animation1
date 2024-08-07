@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Canvas Text Animation</title>
+    <style>
+      body,
+      html {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+        background: #000;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+      }
+      #textInput {
+        position: absolute;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 10px;
+        font-size: 20px;
+        z-index: 10;
+      }
+      canvas {
+        position: absolute;
+      }
+    </style>
+  </head>
+  <body>
+    <input type="text" id="textInput" placeholder="Enter your text" />
+    <canvas id="canvas"></canvas>
+    <script>
+      const canvas = document.getElementById("canvas");
+      const ctx = canvas.getContext("2d");
+      const textInput = document.getElementById("textInput");
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+
+      let shapes = [];
+      let text = "Hello World";
+      let gradientOffset = 0;
+      let fireworks = [];
+      let blinkSpeed = 0.1;
+
+      textInput.addEventListener("input", (e) => {
+        text = e.target.value;
+      });
+
+      class Shape {
+        constructor(x, y, type, color) {
+          this.x = x;
+          this.y = y;
+          this.type = type;
+          this.size = Math.random() * 20 + 10;
+          this.scale = 1;
+          this.color = color;
+          this.angle = 0;
+        }
+
+        draw() {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.angle);
+          ctx.scale(this.scale, this.scale);
+          ctx.beginPath();
+          ctx.fillStyle = this.color;
+          ctx.filter = "blur(2px)";
+
+          if (this.type === "triangle") {
+            ctx.moveTo(0, -this.size);
+            ctx.lineTo(this.size, this.size);
+            ctx.lineTo(-this.size, this.size);
+            ctx.closePath();
+          } else if (this.type === "donut") {
+            ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+            ctx.moveTo(this.size / 2, 0);
+            ctx.arc(0, 0, this.size / 2, 0, Math.PI * 2);
+          } else if (this.type === "square") {
+            ctx.rect(-this.size, -this.size, this.size * 2, this.size * 2);
+          } else if (this.type === "circle") {
+            ctx.arc(0, 0, this.size, 0, Math.PI * 2);
+          }
+
+          ctx.fill();
+          ctx.restore();
+        }
+
+        update() {
+          this.angle += 0.1; // Faster animation
+          this.scale = 1 + Math.sin(this.angle) * 0.3; // More noticeable scaling
+          this.draw();
+        }
+      }
+
+      class Firework {
+        constructor(x, y, color) {
+          this.x = x;
+          this.y = y;
+          this.color = color;
+          this.particles = [];
+          this.init();
+        }
+
+        init() {
+          for (let i = 0; i < 100; i++) {
+            this.particles.push({
+              x: this.x,
+              y: this.y,
+              vx: (Math.random() - 0.5) * 5,
+              vy: (Math.random() - 0.5) * 5,
+              alpha: 1,
+            });
+          }
+        }
+
+        update() {
+          this.particles.forEach((particle) => {
+            particle.x += particle.vx;
+            particle.y += particle.vy;
+            particle.alpha -= 0.02;
+          });
+
+          this.particles = this.particles.filter(
+            (particle) => particle.alpha > 0
+          );
+
+          if (this.particles.length === 0) {
+            this.init();
+          }
+        }
+
+        draw() {
+          this.particles.forEach((particle) => {
+            ctx.save();
+            ctx.globalAlpha = particle.alpha;
+            ctx.fillStyle = this.color;
+            ctx.beginPath();
+            ctx.arc(particle.x, particle.y, 2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+          });
+        }
+      }
+
+      function createShapes() {
+        const backgroundColors = [
+          "#b547f1",
+          "#1043fd",
+          "#772c30",
+          "#e63914",
+          "#270292",
+        ];
+        const types = ["triangle", "donut", "square", "circle"];
+        for (let i = 0; i < 50; i++) {
+          let type = types[Math.floor(Math.random() * types.length)];
+          let color =
+            backgroundColors[
+              Math.floor(Math.random() * backgroundColors.length)
+            ];
+          shapes.push(
+            new Shape(
+              Math.random() * canvas.width,
+              Math.random() * canvas.height,
+              type,
+              color
+            )
+          );
+        }
+      }
+
+      function createFireworks() {
+        for (let i = 0; i < 5; i++) {
+          fireworks.push(
+            new Firework(
+              Math.random() * canvas.width,
+              Math.random() * canvas.height,
+              "#ff6600"
+            )
+          );
+        }
+      }
+
+      function drawText() {
+        ctx.font = "bold 100px Arial";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        gradientOffset += blinkSpeed;
+        const gradient = ctx.createLinearGradient(0, 0, canvas.width, 0);
+        gradient.addColorStop("0", "#00ff00"); // Green
+        gradient.addColorStop("0.5", "#00ffff"); // Cyan
+        gradient.addColorStop("1.0", "#ffff00"); // Yellow
+        ctx.fillStyle = gradient;
+        ctx.globalAlpha = Math.abs(Math.sin(gradientOffset * 5)); // Faster blinking effect
+        ctx.fillText(text, canvas.width / 2, canvas.height / 2);
+        ctx.globalAlpha = 1; // Reset alpha
+      }
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        shapes.forEach((shape) => shape.update());
+        fireworks.forEach((firework) => {
+          firework.update();
+          firework.draw();
+        });
+        drawText();
+        requestAnimationFrame(animate);
+      }
+
+      function startAnimation(title, color, backgroundColor, fontSize) {
+        canvas.style.backgroundColor = backgroundColor;
+        text = title;
+        textInput.value = title;
+        ctx.fillStyle = color;
+        ctx.font = `bold ${fontSize}px Arial`;
+        createShapes();
+        createFireworks();
+        animate();
+      }
+
+      // Example usage:
+      // startAnimation('Welcome!', '#ffffff', '#000000', 100);
+
+      startAnimation("Hello World", "#ffffff", "#000000", 100);
+    </script>
+  </body>
+</html>
